@@ -10,59 +10,33 @@ const csv = require('csvtojson')
 
 const notion = new Client({ auth: config.Auth })
 
+const {generatorMultiSelect,generatorParent,generatorSelector,generatorDate,generatorName,generatorRichText} = require('./object')
+
 const databaseId = config.DATABASE_ID
 const publisher = ["IEEE", "ACM"]
-
-async function addItem(time) {
-    console.log(time)
+/**
+ * TODO:
+ *     + 为函数添加相关描述
+ *
+ * TODO:
+ *     + 整合addItem、addTitle、appendTitle
+ *     + 把parent、properties等属性进行解构、重构，转换成参数形式
+ **/
+async function addItem(Name,dates,type,year,domain) {
     const pageInfo = {
-        "parent": {
-            "type": "database_id",
-            "database_id": databaseId
-        },
+        "parent": generatorParent(databaseId),
         "properties": {
-            "Name": {
-                "title": [
-                    {
-                        "type": "text",
-                        "text": {
-                            "content": "周报总结test"
-                        }
-                    }
-                ]
-            },
+            //标题
+            "Name": generatorName(content),
             //会议/期刊
-            "_~ZV": {
-                "multi_select": [{
-                    "name": "周总结"
-                }]
+            "_~ZV": generatorMultiSelect(type)
             },
             //发表年份
-            "IKZu": {
-                "select": {
-                    "name": `${time.split('-')[0]}`
-                }
-            },
+            "IKZu": generatorSelector(year),
             //领域
-            "%5D_%3Dh": {
-                "multi_select": [{
-                    "name": "周总结"
-                }]
-            },
-            //是否已读
-            // "azLY": {
-            //     "status": {
-            //         "name": "In progress"
-            //     }
-            // },
+            "%5D_%3Dh": generatorMultiSelect(domain),
             //date，即工作时间范围
-            "Date": {
-                "date": {
-                    "start": time,
-                    "end": time
-                }
-            }
-        },
+            "Date": generatorDate(dates),
     }
     try {
         const response = await notion.pages.create(pageInfo);
@@ -72,27 +46,6 @@ async function addItem(time) {
         console.error(error.body)
     }
 }
-/*
-*  "children": [
-                {
-                    "object": "block",
-                    "paragraph": {
-                        "rich_text": [
-                            {
-                                "text": {
-                                    "content": "Lacinato kale is a variety of kale with a long tradition in Italian cuisine, especially that of Tuscany. It is also known as Tuscan kale, Italian kale, dinosaur kale, kale, flat back kale, palm tree kale, or black Tuscan palm.",
-                                    "link": {
-                                        "url": "https://en.wikipedia.org/wiki/Lacinato_kale"
-                                    }
-                                },
-                                "href": "https://en.wikipedia.org/wiki/Lacinato_kale"
-                            }
-                        ],
-                        "color": "default"
-                    }
-                }
-            ]
-* */
 
 //合并pages
 async function combinePages(pages){
@@ -109,19 +62,7 @@ async function combinePages(pages){
 
         children.push({
             "object": "block",
-            "heading_2": {
-                "rich_text": [
-                    {
-                        "text": {
-                            "content": `${content.results[0].title.text.content}`,
-                            "link": {
-                                "url": `${page.url}`
-                            }
-                        },
-                    },
-                ],
-                "color": "default"
-            }
+            "heading_2": generatorRichText(content.results[0].title.text.content)
         })
     }
     return children
@@ -201,16 +142,7 @@ async function appendTitle(newPageId,oldPageId){
     });
 
     const children = [{
-        "heading_2": {
-            "rich_text": [
-                {
-                    "text": {
-                        "content": `${content.results[0].title.text.content}`,
-                    },
-                },
-            ],
-            "color": "default"
-        }
+        "heading_2": generatorRichText(content.results[0].title.text.content)
     }]
     await appendBlockChildren(newPageId, children)
 }
@@ -254,43 +186,25 @@ async function appendBlockChildren(blockId,children){
 
 async function updatePageproperty(pageId){
     const paperTitle = await notion.pages.properties.retrieve({
-        page_id: PageId,
+        page_id: pageId,
         property_id: "title"
+    }).then((response)=>{
+        console.log(response.results[0].title)
+        return response.results[0].title.text.content
     });
-    const time = getCurrentTime()
+    let time = []
+    time.push(getCurrentTime())
     const paperInfo = await getPaperInfo(paperTitle)
     const response = await notion.pages.update({
         page_id: pageId,
         "properties": {
             //会议/期刊
-            "_~ZV": {
-                "multi_select": [{
-                    "name": `${paperInfo.type}`
-                },{
-                    "name": `${paperInfo.venue}`
-                },{
-                    "name": `${paperInfo.ccf_class}`
-                }]
-            },
+            "_~ZV": generatorMultiSelect(paperInfo.types),
             //发表年份
-            "IKZu": {
-                "select": {
-                    "name": `${paperInfo.year}`
-                }
-            },
+            "IKZu":generatorSelector(paperInfo.year),
 
-            //是否已读
-            // "azLY": {
-            //     "status": {
-            //         "name": "In progress"
-            //     }
-            // },
             //date，即工作时间范围
-            "Date": {
-                "date": {
-                    "start": time
-                }
-            }
+            "Date": generatorDate(time)
         },
     })
 }
@@ -373,7 +287,6 @@ async function getCcfClass(venueInfo){
     await csv().fromFile('./data/ccf_catalog.csv').then((venues)=>{
         for(const venue of venues){
             if(venue.abbr === venueInfo ){
-                console.log(venueInfo)
                 ccf_class = "CCF-"+`${venue.class}`
                 break
             }
@@ -384,10 +297,14 @@ async function getCcfClass(venueInfo){
 }
 
 async function getPaperInfo(paper){
-    await axios.get('https://dblp.org/search/publ/api',{
+    //api并不稳定：'https://dblp.org/search/publ/api'
+    const info = await axios.get('https://dblp.uni-trier.de/search/publ/api',{
         params:{
             q : paper,
             format : "json"
+        },
+        headers:{
+           'User-Agent' :'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36'
         }
     }).then(async (response)=>{
         const result = response.data.result.hits
@@ -398,6 +315,7 @@ async function getPaperInfo(paper){
                 console.log(result.hit[i].info.title.split('.')[0],'---',paper)
                 if(result.hit[i].info.title.split('.')[0] === paper){
                     const paperInfo =result.hit[i].info
+                    // console.log(paperInfo)
                     info = {
                         title: paperInfo.title.split('.')[0],
                         year : paperInfo.year,
@@ -412,7 +330,11 @@ async function getPaperInfo(paper){
         info.ccf_class = await getCcfClass(info.venue)
         console.log(info)
         return info
+    }).then((info)=>{
+        info.types = [info.venue,info.type,info.ccf_class]
+        return info
     })
+    return info
 }
 
 module.exports ={
