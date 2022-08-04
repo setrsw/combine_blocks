@@ -1,3 +1,9 @@
+
+/**
+ * @description 用于生成page的parent数据
+ * @param {string} database_id 数据库的id
+ * @return {Object} page的parent数据
+ **/
 function generatorParent(database_id){
     return {
         "type": "database_id",
@@ -5,6 +11,11 @@ function generatorParent(database_id){
     }
 }
 
+/**
+ * @description 用于生成page的Name属性
+ * @param {string} content title的文本内容
+ * @return {Object} page的title数据
+ **/
 function generatorName(content){
     return {
         "title": [
@@ -18,6 +29,11 @@ function generatorName(content){
     }
 }
 
+/**
+ * @description 用于生成page的RichText数据
+ * @param {string} content title的文本内容
+ * @return {Object} page的RichText数据
+ * **/
 function generatorRichText(content){
     return {
         "rich_text": [
@@ -30,6 +46,12 @@ function generatorRichText(content){
         "color": "default"
     }
 }
+
+/**
+ * @description 用于生成page的Seletor属性
+ * @param {string} name seletor的name内容
+ * @return {Object} page的Seletor数据
+ **/
 function generatorSelector(name){
     return {
             "select": {
@@ -38,6 +60,11 @@ function generatorSelector(name){
     }
 }
 
+/**
+ * @description 用于生成page的Seletor属性
+ * @param {Array.<string>} multi_selectors title的文本内容
+ * @return {Object} page的Seletor数据
+ **/
 function generatorMultiSelect(multi_selectors){
     let multi_select = []
     multi_selectors.forEach((selector)=>{
@@ -46,10 +73,13 @@ function generatorMultiSelect(multi_selectors){
     return {multi_select}
 }
 /**
- * params：
- *      dates：Array
  * TODO：
- *      参数格式未匹配
+ *      参数格式未进行校验匹配
+ **/
+/**
+ * @description 用于生成page的Seletor属性
+ * @param {Array.<string>} dates 多个date值，分别为start，end
+ * @return {Object} page的Date数据
  **/
 function generatorDate(dates){
     let elements = ['start' , 'end']

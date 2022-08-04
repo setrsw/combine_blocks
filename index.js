@@ -1,14 +1,14 @@
-const {addItem, getPagesItem, appendTitle, appendPage, getPaperInfo, updatePageproperty} = require('./component')
+const {createPage, getPagesItem, copyPageTitle, copyPageContent, getPaperInfo, updatePageproperty} = require('./component')
 
 updatePageproperty('cbcf3bee8d20442c9fdf5e6341f9aa06')
 
 async function main(){
-    const newPageId = await addItem(getCurrentTime())
+    const newPageId = await createItem(getCurrentTime())
     const pages =await getPagesItem()
     for(const page of pages){
         const oldPageId = page.id
-        await appendTitle(newPageId,oldPageId)
-        await appendPage(newPageId,oldPageId)
+        await copyPageTitle(newPageId,oldPageId)
+        await copyPageContent(newPageId,oldPageId)
     }
 }
 // main()
