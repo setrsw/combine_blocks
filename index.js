@@ -6,22 +6,19 @@ const fs = require('fs')
 const config = require('./config')
 
 const app = new Koa()
-app.use(bodyParser)
+app.use(bodyParser())
 const Router = require('koa-router')
 
 let update = new Router()
 
-update.get('/update',async (ctx) => {
+update.post('/update',async (ctx)=>{
     const body = ctx.request.body
     await updatePageProperty(body.page_id)
     console.log(body)
+    ctx.body = 'test'
 })
 
-let router = new Router()
-
-router.use('/update',update.routes(),update.allowedMethods())
-
-app.use(router.routes()).use(router.allowedMethods())
+app.use(update.routes()).use(update.allowedMethods())
 
 
 // const propreties = {
