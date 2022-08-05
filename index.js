@@ -1,16 +1,48 @@
-const {createPage, getPagesItem, copyPageTitle, copyPageContent, getPaperInfo, updatePageproperty} = require('./component')
+const {createPage, getPagesItem, copyPageTitle, copyPageContent, getPaperInfo, updatePageProperty} = require('./component')
+const {getCurrentTime} = require('./util')
+const Koa = require('koa')
+const bodyParser = require('koa-bodyparser');
+const fs = require('fs')
+const config = require('./config')
 
-updatePageproperty('cbcf3bee8d20442c9fdf5e6341f9aa06')
+const app = new Koa()
+app.use(bodyParser)
+const Router = require('koa-router')
 
-async function main(){
-    const newPageId = await createItem(getCurrentTime())
-    const pages =await getPagesItem()
-    for(const page of pages){
-        const oldPageId = page.id
-        await copyPageTitle(newPageId,oldPageId)
-        await copyPageContent(newPageId,oldPageId)
-    }
-}
+let update = new Router()
+
+update.get('/update',async (ctx) => {
+    const body = ctx.request.body
+    await updatePageProperty(body.page_id)
+    console.log(body)
+})
+
+let router = new Router()
+
+router.use('/update',update.routes(),update.allowedMethods())
+
+app.use(router.routes()).use(router.allowedMethods())
+
+
+// const propreties = {
+//     name: "Using Bandit Algorithms for Project Selection in Cross-Project Defect Prediction",
+//     dates: ['2022-08-05'],
+//     year: '2021',
+//     type: [],
+//     domain: ['CPDP']
+// }
+
+// updatePageProperty('aa915458e6d14dbcb385450275a0ad35')
+// createPage(propreties)
+// async function main(){
+//     const newPageId = await createItem(getCurrentTime())
+//     const pages =await getPagesItem()
+//     for(const page of pages){
+//         const oldPageId = page.id
+//         await copyPageTitle(newPageId,oldPageId)
+//         await copyPageContent(newPageId,oldPageId)
+//     }
+// }
 // main()
 
 /*
@@ -23,3 +55,7 @@ TODO：
         + 1、功能性：新建文件或者说论文（page）时，自动查询并填充其他属性内容 (doing)
         + 2、部署：构建运行流程
 * */
+
+app.listen(config.PORT,()=>{
+    console.log('Running!')
+})

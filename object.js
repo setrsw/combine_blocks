@@ -1,3 +1,4 @@
+const {getCurrentTime} = require('./util')
 
 /**
  * @description 用于生成page的parent数据
@@ -18,6 +19,7 @@ function generatorParent(database_id){
  **/
 function generatorName(content){
     return {
+        "type" : "title",
         "title": [
             {
                 "type": "text",
@@ -84,10 +86,14 @@ function generatorMultiSelect(multi_selectors){
 function generatorDate(dates){
     let elements = ['start' , 'end']
     let min = Math.min(elements.length,dates.length)
-    let data = {}
+    let date = {}
     for(let i = 0; i< min; i++)
-        data[elements[i]]=dates[i]
-    return {data}
+        date[elements[i]]=dates[i]
+    if(min===0){
+        date.push({
+            [elements[0]]:getCurrentTime()
+        })}
+    return {date}
 }
 // let name = 'test'
 // let elements = ['1']

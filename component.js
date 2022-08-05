@@ -11,9 +11,10 @@ const csv = require('csvtojson')
 const notion = new Client({ auth: config.Auth })
 
 const {generatorMultiSelect,generatorParent,generatorSelector,generatorDate,generatorName,generatorRichText} = require('./object')
-
+const {getCurrentTime} = require('./util')
 const database_id = config.DATABASE_ID
 const publisher = ["IEEE", "ACM"]
+
 /**
  * TODO:
  *     + 为函数添加相关描述
@@ -39,15 +40,16 @@ async function createPage(property) {
             //标题
             "Name": generatorName(property.name),
             //会议/期刊
-            "_~ZV": property.type ? generatorMultiSelect(property.type) : "",
+            "_~ZV": generatorMultiSelect(property.type) ,
             //发表年份
-            "IKZu": property.year ? generatorSelector(property.year) : "",
+            "IKZu": generatorSelector(property.year),
             //领域
-            "%5D_%3Dh": property.domain ? generatorMultiSelect(property.domain) : "",
+            "%5D_%3Dh": generatorMultiSelect(property.domain),
             //date，即工作时间范围
-            "Date": property.dates ? generatorDate(property.dates) : "",
+            "Date":generatorDate(property.dates) ,
         },
     }
+    console.log(page_info)
     try {
         const response = await notion.pages.create(page_info);
         console.log("Success! Entry added.")
@@ -74,6 +76,7 @@ async function copyPageTitle(new_page_id, old_page_id){
     }]
     await appendBlockChildren(new_page_id, children)
 }
+
 /**
  * @description 复制old_page的内容到new_page
  * @param {string} new_page_id - new_page
@@ -108,26 +111,6 @@ async function copyPageContent(new_page_id, old_page_id){
             await copyPageContent(new_page_id,block_id)
     }
 }
-// //合并pages
-// async function combinePages(pages){
-//     // console.log('pages---',pages)
-//     for(const page of pages){
-//         // console.log('page---',page)
-//         const page_id = page.id
-//         // console.log(page_id)
-//         const property_id = "title"
-//         const content = await notion.pages.properties.retrieve({
-//             page_id: page_id,
-//             property_id: property_id
-//         });
-//
-//         children.push({
-//             "object": "block",
-//             "heading_2": generatorRichText(content.results[0].title.text.content)
-//         })
-//     }
-//     return children
-// }
 
 /**
  * TODO：
@@ -174,31 +157,6 @@ async function queryDatabase(){
 async function getPagesItem(){
     return queryDatabase()
 }
-/**
- * @description 获取当前时间
- * @return {string} - string：yyyy-MM-dd
- */
-function getCurrentTime() {
-    var date = new Date();//当前时间
-    var month = zeroFill(date.getMonth() + 1);//月
-    var day = zeroFill(date.getDate());//日
-
-    //当前时间
-    return date.getFullYear() + "-" + month + "-" + day;
-}
-
-/**
- * 补零
- * @private
- */
-
-function zeroFill(i){
-    if (i >= 0 && i <= 9) {
-        return "0" + i;
-    } else {
-        return i;
-    }
-}
 
 //在block中添加children，也可以适用于添加page信息
 /**
@@ -213,33 +171,45 @@ async function appendBlockChildren(block_id,children){
     })
     // console.log(response)
 }
+
+/**
+ * @description 获取page的title属性
+ * @param {string} page_id
+ * @returns {string}
+ **/
+async function getPaperTitle(page_id){
+    return await notion.pages.properties.retrieve({
+        page_id: page_id,
+        property_id: "title"
+    }).then((response) => {
+        console.log(response.results[0].title)
+        return response.results[0].title.text.content
+    })
+}
 /**
  *
  *  @description 更新 page的特定属性值,适用于新建page时，根据title名字自动查找并更新 会议/期刊、 发表年份、 时间范围 的值
  *  @param {string} page_id
  **/
 async function updatePageProperty(page_id){
-    const paper_title = await notion.pages.properties.retrieve({
-        page_id: page_id,
-        property_id: "title"
-    }).then((response)=>{
-        console.log(response.results[0].title)
-        return response.results[0].title.text.content
-    });
+    const paper_title =await getPaperTitle(page_id)
     let time = []
     time.push(getCurrentTime())
     const paper_info = await getPaperInfo(paper_title)
+    // console.log(paper_info)
+    const properties= {
+        //会议/期刊
+        "_~ZV": generatorMultiSelect(paper_info.types),
+        //发表年份
+        "IKZu": generatorSelector(paper_info.year),
+
+        //date，即工作时间范围
+        "Date": generatorDate(time)
+    }
+    // console.log(properties)
     const response = await notion.pages.update({
         page_id: page_id,
-        "properties": {
-            //会议/期刊
-            "_~ZV": generatorMultiSelect(paper_info.types),
-            //发表年份
-            "IKZu":generatorSelector(paper_info.year),
-
-            //date，即工作时间范围
-            "Date": generatorDate(time)
-        },
+        properties : properties
     })
 }
 
@@ -274,7 +244,6 @@ async function downloadFile(url,dirname){
  * @param {string} url - 图片链接，要求是图床链接，目前不支持notion内部图床链接
  * @param {string} page_id - 特定page的id
  **/
-
 async function uploadImage(url, page_id){
     const children = []
     children.push({
@@ -286,45 +255,12 @@ async function uploadImage(url, page_id){
     })
     appendBlockChildren(page_id,children)
 }
-// upload('https://mailscuteducn-my.sharepoint.com/personal/se_tangrun_mail_scut_edu_cn/Documents/737385.jpg','8d043b69fdda4993ac9937ec32358248')
-// console.log(downloadFile('https://pic3.zhimg.com/v2-759158f80982b4d9db1b934e3714acb2_b.jpg','tempDownload'))
-//
-// async function getPageRecursively(blockId,has_children){
-//     const response = await notion.blocks.children.list({
-//         block_id: blockId,
-//         page_size: 50,
-//     });
-//     const results = response.results
-//     for(const block in results){
-//         if(has_children){
-//             getPageRecursively(block.id)
-//         }
-//     }
-// }
-
-// createItem("Yurts in Big Sur, California")
-// queryDatabase()
-// combinePages(queryDatabase())
-
-// const promise = new Promise(()=>{
-//     const newPageId = createItem(getCurrentTime())
-//     return newPageId
-// }).then((newPageId)=>{
-//     console.log(newPageId)
-//     const pages = getPagesItem()
-//     for(const page in pages){
-//         console.log(page)
-//         const oldPageId = page.id
-//         new Promise(copyPageContent(newPageId,oldPageId))
-//     }
-// })
 
 /**
  * @description 生成 期刊/论文 名称缩写
  * @param {string} venue_name - 期刊/论文名称
  * @returns {string} 期刊/论文 名称缩写
  **/
-
 function getAbbr(venue_name){
     if(venue_name===venue_name.toUpperCase())
         return venue_name
@@ -340,6 +276,7 @@ function getAbbr(venue_name){
         return result.length>1 ? result : temp[1]
     }
 }
+
 /**
  * @description 生成 期刊/论文 ccf等级
  * @param {string} venue_info - 期刊/论文名称
@@ -358,6 +295,7 @@ async function getCcfClass(venue_info){
     console.log(ccf_class)
     return ccf_class
 }
+
 /**
  * @description - 用于生成给定论文的信息
  * @param {string} paper_title - 论文名称
@@ -373,6 +311,7 @@ async function getCcfClass(venue_info){
  *
  **/
 async function getPaperInfo(paper_title){
+    console.log('---',paper_title)
     //api并不稳定：'https://dblp.org/search/publ/api'
     const info = await axios.get('https://dblp.uni-trier.de/search/publ/api',{
         params:{
@@ -384,14 +323,14 @@ async function getPaperInfo(paper_title){
         }
     }).then(async (response)=>{
         const result = response.data.result.hits
-        // console.log(result)
+        console.log(result)
         let info = {}
         if(result.hit){
             for(let i=0;i<result.hit.length;i++){
                 console.log(result.hit[i].info.title.split('.')[0],'---',paper_title)
                 if(result.hit[i].info.title.split('.')[0] === paper_title){
                     const paper_info =result.hit[i].info
-                    // console.log(paper_info)
+                    console.log(paper_info)
                     info = {
                         title: paper_info.title.split('.')[0],
                         year : paper_info.year,
@@ -404,7 +343,7 @@ async function getPaperInfo(paper_title){
         return info
     }).then(async (info)=>{
         info.ccf_class = await getCcfClass(info.venue)
-        console.log(info)
+        // console.log(info)
         return info
     }).then((info)=>{
         info.types = [info.venue,info.type,info.ccf_class]
