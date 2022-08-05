@@ -206,7 +206,7 @@ async function updatePageProperty(page_id){
         //date，即工作时间范围
         "Date": generatorDate(time)
     }
-    // console.log(properties)
+    console.log(properties)
     const response = await notion.pages.update({
         page_id: page_id,
         properties : properties

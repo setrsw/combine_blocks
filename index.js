@@ -13,10 +13,14 @@ let update = new Router()
 
 update.post('/update',async (ctx)=>{
     const body = ctx.request.body
-    if(!body.secret || body.secret !== config.secret)
-        ctx.body.status = 403
+    console.log(body.secret ,config.SECRET)
+    if(!body.secret || body.secret !== config.SECRET){
+        ctx.body = "wrong secret"
+    }
     else{
-        await updatePageProperty(body.page_id.split('-').join())
+        let id = body.page_id.split('-').join("")
+        console.log(id)
+        await updatePageProperty(id)
         ctx.body = 'success'
     }
 })
