@@ -13,9 +13,12 @@ let update = new Router()
 
 update.post('/update',async (ctx)=>{
     const body = ctx.request.body
-    await updatePageProperty(body.page_id)
-    console.log(body)
-    ctx.body = 'test'
+    if(!body.secret || body.secret !== config.secret)
+        ctx.body.status = 403
+    else{
+        await updatePageProperty(body.page_id.split('-').join())
+        ctx.body = 'success'
+    }
 })
 
 app.use(update.routes()).use(update.allowedMethods())
